@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+python-dotenv
+groq
+chromadb
+sentence-transformers
+transformers
+torch
+pandas
+requests
+prophet
+plotly
+scikit-learn
+statsmodels
