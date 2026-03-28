@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EchoSense AI</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary: #7C6FF7;
+    --primary-light: #9D98F9;
+    --accent: #FF7E5F;
+    --bg: #0D0D1A;
+    --surface: rgba(255,255,255,0.05);
+    --surface2: rgba(255,255,255,0.08);
+    --border: rgba(255,255,255,0.1);
+    --text: #F0EFF8;
+    --text-muted: rgba(240,239,248,0.55);
+    --bot-bg: rgba(124,111,247,0.12);
+    --radius: 20px;
+    --radius-sm: 12px;
+  }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  canvas#particles {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0; pointer-events: none;
+  }
+  .app {
+    position: relative; z-index: 1;
+    width: 100%; max-width: 680px; height: 92vh;
+    display: flex; flex-direction: column;
+    border-radius: var(--radius); overflow: hidden;
+    border: 1px solid var(--border);
+    backdrop-filter: blur(20px);
+    background: rgba(13,13,26,0.85);
+    box-shadow: 0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(124,111,247,0.15);
+  }
+  .header {
+    padding: 22px 28px 18px;
+    display: flex; align-items: center; gap: 14px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(124,111,247,0.07);
+    flex-shrink: 0;
+  }
+  .logo {
+    width: 44px; height: 44px; border-radius: 14px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+    box-shadow: 0 4px 16px rgba(124,111,247,0.4);
+  }
+  .header-text h1 {
+    font-size: 17px; font-weight: 600; letter-spacing: -0.3px;
+    background: linear-gradient(90deg, var(--text), var(--primary-light));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .header-text p { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .status { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; color: #4ADE80; }
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: #4ADE80;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(0.85)} }
+  .messages {
+    flex: 1; overflow-y: auto; padding: 24px 28px;
+    display: flex; flex-direction: column; gap: 16px; scroll-behavior: smooth;
+  }
+  .messages::-webkit-scrollbar { width: 4px; }
+  .messages::-webkit-scrollbar-track { background: transparent; }
+  .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .msg-row { display: flex; gap: 10px; animation: slideUp 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+  .msg-row.user { flex-direction: row-reverse; }
+  @keyframes slideUp { from{opacity:0;transform:translateY(12px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; margin-top: 2px;
+  }
+  .avatar.bot {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    font-size: 16px; box-shadow: 0 2px 10px rgba(124,111,247,0.35);
+  }
+  .avatar.user {
+    background: var(--surface2); border: 1px solid var(--border);
+    font-size: 11px; color: var(--text-muted); font-weight: 600;
+  }
+  .bubble {
+    max-width: 72%; padding: 13px 17px; border-radius: 18px;
+    font-size: 14.5px; line-height: 1.65;
+  }
+  .bubble.bot {
+    background: var(--bot-bg); border: 1px solid rgba(124,111,247,0.2);
+    border-bottom-left-radius: 5px; color: var(--text);
+  }
+  .bubble.user {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    border-bottom-right-radius: 5px; color: white;
+  }
+  .typing-row { display: flex; gap: 10px; animation: slideUp 0.3s ease; }
+  .typing-bubble {
+    background: var(--bot-bg); border: 1px solid rgba(124,111,247,0.2);
+    border-radius: 18px; border-bottom-left-radius: 5px;
+    padding: 14px 18px; display: flex; gap: 5px; align-items: center;
+  }
+  .dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--primary-light);
+    animation: typingBounce 1.2s infinite;
+  }
+  .dot:nth-child(2){animation-delay:0.15s} .dot:nth-child(3){animation-delay:0.3s}
+  @keyframes typingBounce { 0%,60%,100%{transform:translateY(0);opacity:0.5} 30%{transform:translateY(-6px);opacity:1} }
+  .email-card {
+    background: rgba(124,111,247,0.08); border: 1px solid rgba(124,111,247,0.25);
+    border-radius: 18px; padding: 20px; max-width: 88%;
+    animation: slideUp 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .email-card p { font-size: 14px; color: var(--text); margin-bottom: 14px; line-height: 1.55; }
+  .email-card p span { color: var(--primary-light); font-weight: 500; }
+  .field-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+  .field-wrap { position: relative; }
+  .field-wrap input {
+    width: 100%; padding: 11px 14px 11px 38px;
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text); font-size: 14px;
+    outline: none; transition: border-color 0.2s, background 0.2s; font-family: inherit;
+  }
+  .field-wrap input:focus { border-color: var(--primary); background: rgba(124,111,247,0.08); }
+  .field-wrap input::placeholder { color: var(--text-muted); }
+  .field-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 15px; pointer-events: none; }
+  .cta-btn {
+    width: 100%; padding: 12px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white; border: none; border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s; font-family: inherit;
+  }
+  .cta-btn:hover { opacity: 0.92; transform: translateY(-1px); }
+  .cta-btn:active { transform: translateY(0); }
+  .cta-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .success-card {
+    background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.25);
+    border-radius: 18px; padding: 16px 20px; font-size: 14px; color: #4ADE80;
+    max-width: 88%; animation: slideUp 0.4s ease; line-height: 1.6;
+  }
+  .input-area {
+    padding: 16px 20px; display: flex; gap: 10px;
+    border-top: 1px solid var(--border); background: rgba(255,255,255,0.02); flex-shrink: 0;
+  }
+  #userInput {
+    flex: 1; padding: 13px 18px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; color: var(--text); font-size: 14.5px;
+    outline: none; transition: border-color 0.2s, background 0.2s; font-family: inherit;
+  }
+  #userInput:focus { border-color: rgba(124,111,247,0.5); background: var(--surface2); }
+  #userInput::placeholder { color: var(--text-muted); }
+  #userInput:disabled { opacity: 0.4; }
+  #sendBtn {
+    width: 48px; height: 48px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    border: none; border-radius: 14px; color: white; font-size: 20px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.2s, transform 0.15s; flex-shrink: 0;
+    box-shadow: 0 4px 14px rgba(124,111,247,0.4);
+  }
+  #sendBtn:hover { opacity: 0.9; transform: scale(1.05); }
+  #sendBtn:active { transform: scale(0.97); }
+  #sendBtn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+</style>
+</head>
+<body>
+<canvas id="particles"></canvas>
+<div class="app">
+  <div class="header">
+    <div class="logo">🧠</div>
+    <div class="header-text">
+      <h1>EchoSense AI</h1>
+      <p>Your personal emotional check-in companion</p>
+    </div>
+    <div class="status"><div class="status-dot"></div>Online</div>
+  </div>
+  <div class="messages" id="messages"></div>
+  <div class="input-area">
+    <input type="text" id="userInput" placeholder="Tell me how you're feeling…" autocomplete="off" />
+    <button id="sendBtn" onclick="sendMessage()">↑</button>
+  </div>
+</div>
+<script>
+const API = "http://127.0.0.1:8000";
+const sessionId = "s_" + Math.random().toString(36).substr(2,9);
+let readyToSend = false;
+
+(function(){
+  const canvas = document.getElementById("particles");
+  const ctx = canvas.getContext("2d");
+  let W, H, pts = [];
+  function resize(){ W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
+  function P(){
+    this.x = Math.random()*W; this.y = Math.random()*H;
+    this.r = Math.random()*1.8+0.4;
+    this.vx = (Math.random()-0.5)*0.3; this.vy = (Math.random()-0.5)*0.3;
+    this.a = Math.random()*0.5+0.1;
+    const c=["#7C6FF7","#FF7E5F","#FEB47B","#9D98F9","#C4B5FD"];
+    this.c = c[Math.floor(Math.random()*c.length)];
+  }
+  function init(){ resize(); pts=[]; for(let i=0;i<90;i++) pts.push(new P()); addEventListener("resize",resize); }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    pts.forEach(p=>{
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0)p.x=W; if(p.x>W)p.x=0; if(p.y<0)p.y=H; if(p.y>H)p.y=0;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=p.c; ctx.globalAlpha=p.a; ctx.fill();
+    });
+    for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++){
+      const dx=pts[i].x-pts[j].x, dy=pts[i].y-pts[j].y, d=Math.sqrt(dx*dx+dy*dy);
+      if(d<100){
+        ctx.beginPath(); ctx.moveTo(pts[i].x,pts[i].y); ctx.lineTo(pts[j].x,pts[j].y);
+        ctx.strokeStyle="#7C6FF7"; ctx.globalAlpha=(1-d/100)*0.12; ctx.lineWidth=0.5; ctx.stroke();
+      }
+    }
+    ctx.globalAlpha=1; requestAnimationFrame(draw);
+  }
+  init(); draw();
+})();
+
+window.onload = () => {
+  addBot("Hey there 👋 I'm EchoSense — your emotional check-in buddy. How are you feeling today?");
+  document.getElementById("userInput").addEventListener("keypress", e => { if(e.key==="Enter") sendMessage(); });
+};
+
+function addBot(text){
+  const msgs = document.getElementById("messages");
+  const row = document.createElement("div"); row.className = "msg-row bot";
+  row.innerHTML = `<div class="avatar bot">🧠</div><div class="bubble bot">${text}</div>`;
+  msgs.appendChild(row); msgs.scrollTop = msgs.scrollHeight;
+}
+
+function addUser(text){
+  const msgs = document.getElementById("messages");
+  const row = document.createElement("div"); row.className = "msg-row user";
+  row.innerHTML = `<div class="avatar user">You</div><div class="bubble user">${text}</div>`;
+  msgs.appendChild(row); msgs.scrollTop = msgs.scrollHeight;
+}
+
+function showTyping(){
+  const msgs = document.getElementById("messages");
+  const row = document.createElement("div"); row.className = "typing-row"; row.id = "typing";
+  row.innerHTML = `<div class="avatar bot">🧠</div><div class="typing-bubble"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+  msgs.appendChild(row); msgs.scrollTop = msgs.scrollHeight;
+}
+
+function removeTyping(){ const t=document.getElementById("typing"); if(t) t.remove(); }
+
+function showEmailCard(){
+  const msgs = document.getElementById("messages");
+  const div = document.createElement("div"); div.className = "email-card"; div.id = "emailCard";
+  div.innerHTML = `
+    <p>✨ I've got everything I need! Want me to send you a <span>personalized insight email</span>?</p>
+    <div class="field-group">
+      <div class="field-wrap"><span class="field-icon">👤</span><input type="text" id="nameInput" placeholder="Your name" /></div>
+      <div class="field-wrap"><span class="field-icon">✉️</span><input type="email" id="emailInput" placeholder="Your email address" /></div>
+    </div>
+    <button class="cta-btn" onclick="submitEmail()">Send me my insight 🚀</button>`;
+  msgs.appendChild(div); msgs.scrollTop = msgs.scrollHeight;
+  document.getElementById("userInput").disabled = true;
+  document.getElementById("sendBtn").disabled = true;
+}
+
+async function sendMessage(){
+  const input = document.getElementById("userInput");
+  const text = input.value.trim();
+  if(!text || readyToSend) return;
+  addUser(text); input.value = ""; showTyping();
+  try {
+    const res = await fetch(`${API}/chat`, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({session_id:sessionId, message:text})
+    });
+    const data = await res.json();
+    removeTyping(); addBot(data.reply);
+    if(data.ready_to_send){ readyToSend=true; setTimeout(showEmailCard,400); }
+  } catch(e){
+    removeTyping();
+    addBot("Hmm, couldn't connect to the server. Make sure the backend is running!");
+  }
+}
+
+async function submitEmail(){
+  const name = document.getElementById("nameInput").value.trim();
+  const email = document.getElementById("emailInput").value.trim();
+  if(!name||!email){ alert("Please enter both name and email."); return; }
+  const btn = document.querySelector("#emailCard .cta-btn");
+  btn.textContent = "Generating your insight... 🧠"; btn.disabled = true;
+  try {
+    const res = await fetch(`${API}/send-email`, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({session_id:sessionId, name, email})
+    });
+    await res.json();
+    document.getElementById("emailCard").remove();
+    const msgs = document.getElementById("messages");
+    const s = document.createElement("div"); s.className = "success-card";
+    s.innerHTML = `✅ Your personalized insight is on its way to <strong>${email}</strong>!<br>Check your inbox in a few seconds, ${name} 🎉`;
+    msgs.appendChild(s); msgs.scrollTop = msgs.scrollHeight;
+  } catch(e){
+    btn.textContent = "Send me my insight 🚀"; btn.disabled = false;
+    alert("Something went wrong. Please try again.");
+  }
+}
+</script>
+</body>
+</html>
